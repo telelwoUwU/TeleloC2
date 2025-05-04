@@ -6,8 +6,8 @@
 - Trying to add mirai botnet bot support to it.
 
   # TODO
-  - Fix mirai bot not adding to bot list.
   - Add attacks to mirai bots.
+  - Add dc log to everything and add it to the config
 
     
 -----------------------------------------------------------
