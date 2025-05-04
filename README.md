@@ -8,6 +8,7 @@
   # TODO
   - Add attacks to mirai bots.
   - Add dc log to everything and add it to the config
+  - Fix threading issue wich is only allowing you to connect 1x (idk why)   I accept any help UwU.
 
     
 -----------------------------------------------------------
